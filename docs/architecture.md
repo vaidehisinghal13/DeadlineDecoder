@@ -106,11 +106,19 @@ clearly labeled in the UI.
 
 **Error (non-200):** `{ "error": <code>, "message": string }` where `code` is one of
 `bad_request` (400), `rate_limited` (429), `server_misconfigured` (500),
-`upstream_error` (502), `invalid_ai_response` (502).
+`model_unavailable` (502), `upstream_error` (502), `invalid_ai_response` (502).
 
 The function normalizes the model output: it trims strings, clamps `estimateMinutes`
-to 5–1440, coerces unknown `source` values to `suggested`, caps list sizes, and
-rejects a response with no usable tasks.
+to 5–1440, coerces unknown `source` values to `suggested`, caps list sizes (max 30
+requirements and 30 tasks), and rejects a response with no usable tasks.
+
+**Model availability.** The default model is the stable alias
+`gemini-flash-lite-latest` (overridable via `GEMINI_MODEL`). A model appearing in the
+Gemini ListModels response does not guarantee it works for `generateContent` — some
+older pinned models return a 404 ("no longer available to new users") for new keys.
+The function therefore maps an upstream 404 to a dedicated `model_unavailable` error
+with an actionable message (including Gemini's own error text) rather than a generic
+"(404)", so a misconfigured or retired model is easy to diagnose.
 
 ## 5. Error handling & resilience
 
@@ -118,7 +126,8 @@ rejects a response with no usable tasks.
   `DecodeError`. The Decoder view shows a friendly message and always offers the
   sample result as a fallback.
 - **Server:** every path returns the typed JSON error shape; stack traces and the key
-  are never leaked.
+  are never leaked. A Gemini 404 is surfaced as `model_unavailable` with a message that
+  names the configured model and points to the ListModels check.
 - **Storage:** `loadState`/`parseState` never throw — corrupt or version-mismatched
   data resets to a valid empty state.
 - **Scheduler:** a total function that handles zero tasks, no due date, and past-due

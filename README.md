@@ -1,11 +1,26 @@
 # Deadline Decoder
 
-Turn long, overwhelming assignment instructions into an organized task list and a
-personalized study plan. Paste your assignment, and Deadline Decoder uses Google's
-Gemini API to extract the requirements, generate actionable tasks with time
-estimates, and build a day-by-day schedule leading up to your deadline.
+**From Overwhelming Assignments to Actionable Plans.**
 
-Built for the AWS Hackathon using **Kiro's spec-driven development workflow**.
+College assignment prompts bury technical requirements, deliverables, grading criteria,
+and deadlines inside dense paragraphs. Translating that into a plan is slow, important
+requirements get missed, and students underestimate how long the work will take.
+
+Deadline Decoder fixes the gap between *receiving* an assignment and *starting* it.
+Paste your instructions and Google's Gemini model extracts the requirements and
+generates actionable tasks with time estimates. Save the assignment, track your
+progress, generate a day-by-day study plan, and export it to your calendar — all with
+no account required.
+
+Built for the "Solve What Is Closest to You" hackathon using **Kiro's spec-driven
+development workflow** (Kiro was the only IDE used). See the
+[technical write-up](docs/writeup.md) for the full story.
+
+## Live Demo & Links
+
+- **Live Application:** [Deadline Decoder](https://deadline-decoder.vercel.app/)
+- **Source Code:** [GitHub Repository](https://github.com/vaidehisinghal13/DeadlineDecoder)
+- **Demo Video:** Coming soon (video link will be added after recording).
 
 ## Features
 
@@ -57,12 +72,21 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 # 1. Install dependencies
 npm install
 
-# 2. Create your local env file and add your key
+# 2. Create your local env file from the template and add your key
 cp .env.example .env.local
 # then edit .env.local and set GEMINI_API_KEY=...
 ```
 
-Your `.env.local` is gitignored and never committed.
+`.env.example` is a committed template that documents the required variables with
+placeholder values (no real secrets). Your `.env.local` holds the real key and is
+gitignored, so it is never committed.
+
+### Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `GEMINI_API_KEY` | Yes | Your Google Gemini API key. Server-side only. |
+| `GEMINI_MODEL` | No | Override the model. Defaults to `gemini-flash-lite-latest`. |
 
 ### Checking which Gemini models your key can use
 
@@ -118,10 +142,17 @@ npm run lint       # ESLint, zero-warnings policy
 npm run build      # type-check + production build
 ```
 
-The unit tests cover the decoder response validation, progress math, the study-plan
-scheduler, and storage resilience.
+The unit tests (52 across 5 suites, as of the latest run) cover the decoder response
+validation, progress math, the study-plan scheduler, storage resilience, and `.ics`
+calendar generation. They cover the pure business logic; React components and full
+end-to-end flows are verified manually against the demo scenario.
 
 ## Deployment (Vercel)
+
+The live application is deployed at
+**[https://deadline-decoder.vercel.app/](https://deadline-decoder.vercel.app/)**.
+
+To deploy your own instance:
 
 1. Push this repository to GitHub (the `.kiro/` directory is tracked; `.env*` is not).
 2. In [Vercel](https://vercel.com), **Add New → Project** and import the repo.
@@ -130,7 +161,7 @@ scheduler, and storage resilience.
 4. Under **Settings → Environment Variables**, add `GEMINI_API_KEY` (and optionally
    `GEMINI_MODEL`). These are server-side only.
 5. Deploy. The SPA is served statically and `/api/decode` runs as a serverless
-   function.
+   function. Vercel auto-deploys on every push to the default branch.
 
 ## Security notes
 
@@ -152,8 +183,36 @@ src/components/        UI: dashboard, decoder, tasks, planner, layout, primitive
 docs/                  Architecture, Kiro usage, and the technical write-up
 ```
 
+## Sample / demo fallback
+
+The Decoder includes a clearly labeled **"Load sample assignment"** action. It fills in
+realistic instructions and produces a complete decode result — requirements and tasks —
+**without calling Gemini**. Sample-generated content is labeled as a demo in the UI so
+it is never mistaken for live AI output. If a live decode fails (for example, a missing
+key or an unavailable model), the error state also offers the sample result as a
+fallback. This keeps the full flow — decode → save → track → plan → export —
+demonstrable even without a working API key, which matters for a reliable live demo.
+
+## Limitations and known constraints
+
+- **Single device / browser.** Data lives in `localStorage`, so assignments do not sync
+  across devices or browsers and are cleared if browser storage is cleared.
+- **No accounts or authentication.** Intentional for the MVP; there is no multi-user
+  support.
+- **Calendar export is a snapshot, not live sync.** Re-export after changing the plan;
+  previously imported events do not update themselves.
+- **AI output should be verified.** Extracted requirements and time estimates are an aid,
+  not ground truth — confirm them against the original instructions.
+- **Model availability varies by key.** Some Gemini models are unavailable to newer
+  keys; see the model-check section above if decoding returns a model error.
+- **Automated tests cover logic, not UI.** Component and end-to-end tests are future
+  work; the UI is verified manually.
+
 ## Documentation
 
+- [`docs/writeup.md`](docs/writeup.md) — the full technical write-up (overview, design
+  decisions, Kiro usage, learning journey)
 - [`docs/architecture.md`](docs/architecture.md) — architecture and design decisions
 - [`docs/kiro-usage.md`](docs/kiro-usage.md) — how Kiro was used to build this
-- [`docs/writeup.md`](docs/writeup.md) — the full technical write-up
+- [`.kiro/specs/deadline-decoder/`](.kiro/specs/deadline-decoder/) — the reviewed spec:
+  `requirements.md`, `design.md`, `tasks.md`
