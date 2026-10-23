@@ -20,7 +20,7 @@ development workflow** (Kiro was the only IDE used). See the
 
 - **Live Application:** [Deadline Decoder](https://deadline-decoder.vercel.app/)
 - **Source Code:** [GitHub Repository](https://github.com/vaidehisinghal13/DeadlineDecoder)
-- **Demo Video:** Coming soon (video link will be added after recording).
+- **Demo Video:** [Watch the demo](https://youtu.be/PWU0adct9Z4)
 
 ## Features
 
