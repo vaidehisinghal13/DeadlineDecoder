@@ -31,6 +31,19 @@ keeps the surface area (and the attack surface) minimal. The function reads the 
 from `process.env.GEMINI_API_KEY`, validates input, requests strict JSON, validates
 the model's output, and maps every failure to a typed error.
 
+### Client-side calendar export (no OAuth)
+**Decision:** the study plan exports as a standard `.ics` file generated entirely in
+the browser (`src/lib/ics.ts`), downloaded via a Blob — no calendar API, no OAuth.
+**Why:** it works with Google, Apple, and Outlook Calendar through one portable
+format, keeps the app server-light and private, and avoids the complexity of OAuth
+for an MVP. Because the planner stores **dates only, never times**, the module never
+invents a time: the user chooses a daily start time (clearly-labeled default 18:00),
+and each day's event length comes from that day's total estimated minutes (with a
+30-minute floor). The generator is a pure function — valid RFC 5545 output with CRLF
+line endings, line folding at 75 octets, and escaped text — so it is fully unit
+tested, and it returns a typed "nothing to export" reason for unscheduled (no due
+date) or empty plans.
+
 ### Deterministic study planner (not AI)
 **Decision:** the schedule is produced by a pure function
 (`src/lib/scheduler.ts`), not by Gemini.
@@ -121,6 +134,9 @@ visible:
   load balancing, and completion cases.
 - `progress.test.ts` — progress percentages, overdue detection, aggregate stats.
 - `storage.test.ts` — serialize/parse round-trip, corruption, version mismatch.
+- `ics.test.ts` — valid VCALENDAR structure, CRLF endings, chosen start time,
+  minimum event length, text escaping, and graceful null results for unscheduled or
+  empty plans.
 
 Component and end-to-end tests were intentionally out of scope for the one-day MVP;
 the UI is verified manually against the demo flow.

@@ -18,6 +18,9 @@ Built for the AWS Hackathon using **Kiro's spec-driven development workflow**.
 - **Smart study planner** — a deterministic local algorithm distributes your
   remaining tasks across the days before the deadline, with warnings for overdue or
   time-tight situations.
+- **Export to Calendar** — download the study plan as a standard `.ics` file
+  (Google / Apple / Outlook). You pick the daily start time; the app never invents
+  one. Entirely client-side, no OAuth or external API.
 - **Dashboard** — assignment cards, aggregate progress stats, and upcoming deadlines
   with overdue highlighting.
 - **Sample assignment** — load a realistic sample with one click; the full flow works
@@ -142,7 +145,7 @@ scheduler, and storage resilience.
 
 ```
 api/decode.ts          Serverless function (Gemini proxy)
-src/lib/               Pure logic: scheduler, progress, storage, validation, sample
+src/lib/               Pure logic: scheduler, progress, storage, validation, sample, ics
 src/hooks/             useAssignments (state + localStorage)
 src/components/        UI: dashboard, decoder, tasks, planner, layout, primitives
 .kiro/                 Steering docs + the spec (requirements, design, tasks)

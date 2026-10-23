@@ -1,14 +1,30 @@
 import { useMemo, useState } from 'react';
-import { CalendarClock, RefreshCw, TriangleAlert } from 'lucide-react';
+import { CalendarClock, CalendarPlus, RefreshCw, TriangleAlert } from 'lucide-react';
 import type { Assignment } from '../../types';
 import { generatePlan } from '../../lib/scheduler';
 import { formatMinutes } from '../../lib/format';
+import { buildIcs, icsFilename, DEFAULT_START_TIME } from '../../lib/ics';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+
+/** Trigger a client-side download of the given text as a file. */
+function downloadTextFile(filename: string, content: string, mime: string) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 export function StudyPlanner({ assignment }: { assignment: Assignment }) {
   // `nonce` lets the user regenerate; the plan is otherwise derived from tasks.
   const [nonce, setNonce] = useState(0);
+  const [startTime, setStartTime] = useState(DEFAULT_START_TIME);
+  const [exportError, setExportError] = useState<string | null>(null);
   const plan = useMemo(
     () => generatePlan(assignment, new Date()),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -20,6 +36,19 @@ export function StudyPlanner({ assignment }: { assignment: Assignment }) {
     [assignment.tasks],
   );
 
+  // Export is only meaningful for a dated plan with at least one scheduled task.
+  const canExport = !plan.unscheduled && plan.days.some((d) => d.taskIds.length > 0);
+
+  function handleExport() {
+    setExportError(null);
+    const result = buildIcs(assignment, plan, { startTime });
+    if (!result.content) {
+      setExportError(result.reason ?? 'Nothing to export.');
+      return;
+    }
+    downloadTextFile(icsFilename(assignment), result.content, 'text/calendar;charset=utf-8');
+  }
+
   return (
     <Card className="p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -30,6 +59,40 @@ export function StudyPlanner({ assignment }: { assignment: Assignment }) {
           <RefreshCw className="h-4 w-4" /> Regenerate
         </Button>
       </div>
+
+      {canExport ? (
+        <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+          <div>
+            <label
+              htmlFor={`start-${assignment.id}`}
+              className="mb-1 block text-xs font-medium text-slate-600"
+            >
+              Daily start time
+            </label>
+            <input
+              id={`start-${assignment.id}`}
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value || DEFAULT_START_TIME)}
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-brand-400"
+            />
+          </div>
+          <Button variant="secondary" size="sm" onClick={handleExport}>
+            <CalendarPlus className="h-4 w-4" /> Export to Calendar
+          </Button>
+          <p className="w-full text-xs text-slate-400 sm:w-auto sm:flex-1">
+            Downloads an .ics file for Google, Apple, or Outlook Calendar. Each day becomes
+            a study session starting at the time you choose (default {DEFAULT_START_TIME}).
+          </p>
+        </div>
+      ) : null}
+
+      {exportError ? (
+        <p className="mb-4 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          {exportError}
+        </p>
+      ) : null}
 
       {plan.warnings.length ? (
         <div className="mb-4 space-y-2">

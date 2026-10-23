@@ -14,7 +14,9 @@ requirements and underestimate how long work will take. Deadline Decoder does th
 parsing and the scheduling so the student can focus on the work itself.
 
 The MVP has no accounts and no database — everything is stored in the browser's
-localStorage — which keeps it private, simple, and fast to ship.
+localStorage — which keeps it private, simple, and fast to ship. The study plan can
+also be exported as a standard `.ics` calendar file (Google / Apple / Outlook),
+generated entirely client-side with no OAuth.
 
 ## Design decisions
 
@@ -76,7 +78,8 @@ commands before moving on. The full account is in
 
 - **Persist and edit the generated plan** (drag tasks between days), rather than
   always regenerating it from scratch.
-- **Calendar export** (`.ics`) so plans land in the student's real calendar.
+- **Richer calendar export**: per-task events, reminders/alarms (VALARM), and
+  recurring study blocks, building on the shipped `.ics` export.
 - **Multi-assignment planning** that balances workload across all active assignments,
   not just one at a time.
 - **Optional accounts and cloud sync** for use across devices (deliberately out of
