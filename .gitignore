@@ -1,0 +1,20 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# Vercel
+.vercel/
+
+# local env files (contain secrets) — never commit these
+.env
+.env.local
+.env.*.local
+
+# ...but DO commit the example template
+!.env.example
+
+# editor / OS
+.DS_Store
+*.log
