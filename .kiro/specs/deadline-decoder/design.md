@@ -1,6 +1,6 @@
-# Technical Design — Deadline Decoder
+# Design Document
 
-## 1. Overview
+## Overview
 
 Deadline Decoder is a single-page React app (Vite + TypeScript + Tailwind) with one
 Vercel serverless function (`/api/decode`) that brokers calls to Google's Gemini API.
@@ -8,6 +8,12 @@ The browser never sees the Gemini key. All user data (assignments, tasks, plans)
 in `localStorage` behind a typed storage module. Domain logic (progress math, study-plan
 scheduling, AI-response validation) is implemented as pure, unit-tested functions in
 `src/lib/`, separate from React components.
+
+## Architecture
+
+The system is a static React SPA plus a single serverless function. The browser calls
+the function, which is the only component that talks to Gemini (so the API key stays
+server-side). Decoded assignments are persisted in the browser's `localStorage`.
 
 ```
 Browser (React SPA)
@@ -32,7 +38,7 @@ Vercel Serverless Function  ──►  Google Gemini API (key from GEMINI_API_KE
 
 ---
 
-## 2. Data Models
+## Data Models
 
 Shared types live in `src/types/index.ts`. The serverless function keeps a minimal
 local copy of the request/response contract to avoid cross-bundle import coupling.
@@ -92,7 +98,7 @@ export interface PersistedState {
 
 ---
 
-## 3. API Contract — `POST /api/decode`
+## API Contract — `POST /api/decode`
 
 ### Request
 ```json
@@ -130,7 +136,7 @@ Status mapping: `bad_request`→400, `rate_limited`→429, `server_misconfigured
 1. Reject non-POST with 405.
 2. Parse JSON body; validate `instructions` (non-empty, ≤ 12000). Else 400 `bad_request`.
 3. If `GEMINI_API_KEY` missing → 500 `server_misconfigured`.
-4. Build prompt (section 4) and call Gemini `generateContent` with
+4. Build prompt (see Gemini Prompt Design) and call Gemini `generateContent` with
    `responseMimeType: application/json`.
 5. On 429 from Gemini → 429 `rate_limited`. On other non-OK → 502 `upstream_error`.
 6. Extract text, `JSON.parse`, then schema-validate with `validateDecodeResponse`
@@ -155,7 +161,7 @@ to return 200 from the live API). Configurable via the `GEMINI_MODEL` env var.
 
 ---
 
-## 4. Gemini Prompt Design
+## Gemini Prompt Design
 
 System/instruction content enforces the product's honesty rules:
 
@@ -174,7 +180,7 @@ validates defensively.
 
 ---
 
-## 5. Study Planner Algorithm (`src/lib/scheduler.ts`)
+## Study Planner Algorithm (`src/lib/scheduler.ts`)
 
 Pure function: `generatePlan(assignment, today = new Date()): StudyPlan`.
 
@@ -196,7 +202,7 @@ Deterministic and fully unit-testable (no AI, no network).
 
 ---
 
-## 6. Progress & Storage Logic
+## Progress & Storage Logic
 
 - `src/lib/progress.ts`: `assignmentProgress(a)` = completedTasks / totalTasks (0 if none).
   Aggregate helpers compute dashboard totals and overdue flags
@@ -209,7 +215,7 @@ Deterministic and fully unit-testable (no AI, no network).
 
 ---
 
-## 7. Component Architecture
+## Components and Interfaces
 
 ```
 App.tsx                  // view state: 'dashboard' | 'decoder' | 'detail'; holds useAssignments
@@ -234,7 +240,7 @@ content shows a prominent "Sample" badge (Req 7.3).
 
 ---
 
-## 8. Error Handling Strategy
+## Error Handling
 
 - **Client (`lib/api.ts`)**: wraps fetch; maps non-200 bodies to typed errors; network
   failure → `upstream_error`. Decoder view renders a friendly message per error type
@@ -246,7 +252,7 @@ content shows a prominent "Sample" badge (Req 7.3).
 
 ---
 
-## 9. Testing Strategy (Vitest)
+## Testing Strategy
 
 Unit tests for pure logic only (keep MVP fast):
 - `scheduler.test.ts`: normal distribution, due today, past due, tight time, no due date,
@@ -255,12 +261,40 @@ Unit tests for pure logic only (keep MVP fast):
 - `storage.test.ts`: round-trip serialize/parse, corrupt data → empty, version mismatch.
 - `validate.test.ts`: `validateDecodeResponse` accepts valid, rejects missing fields,
   coerces/clamps estimates and sources.
+- `ics.test.ts`: valid VCALENDAR structure, CRLF endings, chosen start time, minimum
+  event length, text escaping, and graceful null results for unscheduled/empty plans.
 
 No component/E2E tests required for the MVP (manual demo verification instead).
 
 ---
 
-## 10. Configuration & Deployment
+## Correctness Properties
+
+Invariants the implementation must uphold (enforced in code and covered by tests):
+
+- **Key secrecy:** the Gemini API key is only ever read server-side from
+  `process.env.GEMINI_API_KEY`; it never appears in any client bundle or response.
+- **No fabricated due dates:** the system never invents a `dueDate`. A due date is only
+  ever the value the user supplied; the AI is instructed not to produce one.
+- **Explicit vs. suggested is preserved:** every requirement/task has a `source` of
+  `explicit` or `suggested`; unknown values from the model are coerced to `suggested`,
+  never silently promoted to `explicit`.
+- **Validated AI output:** decoded responses are schema-checked and normalized —
+  strings trimmed, `estimateMinutes` clamped to 5–1440, lists capped, and a response
+  with no usable tasks rejected.
+- **Progress bounds:** assignment progress is always an integer in [0, 100], and is 0
+  when there are no tasks.
+- **Scheduler totality:** `generatePlan` always returns a valid plan without throwing,
+  for every input — zero tasks, no due date, due today, and past-due deadlines.
+- **Storage resilience:** loading persisted state never throws; corrupt or
+  version-mismatched data resets to a valid empty state.
+- **Calendar export fidelity:** generated `.ics` is valid RFC 5545 (CRLF endings,
+  escaped text), uses only the user-chosen start time (never an invented time), and
+  returns a typed "nothing to export" result for unscheduled or empty plans.
+
+---
+
+## Configuration & Deployment
 
 - Env: `GEMINI_API_KEY` (required, server-side), `GEMINI_MODEL` (optional, defaults to
   `gemini-flash-lite-latest`).
@@ -271,15 +305,15 @@ No component/E2E tests required for the MVP (manual demo verification instead).
 
 ---
 
-## 11. Traceability (requirements → design)
+## Traceability (requirements → design)
 
 | Requirement | Addressed by |
 |---|---|
-| 1 Decoder | §3 API, §4 prompt, §7 Decoder components |
-| 2 Secure backend | §3 server flow, §4 prompt, §10 config |
-| 3 Task mgmt | §6 progress/storage, §7 tasks components |
-| 4 Dashboard | §7 dashboard, §6 overdue/aggregate |
-| 5 Study planner | §5 scheduler algorithm, §7 planner |
-| 6 UI/UX states | §7 components, §8 error handling |
-| 7 Sample fallback | §2 isSample, §8 client fallback, lib/sample.ts |
-| 8 Persistence/privacy | §6 storage, §10 config |
+| 1 Decoder | API Contract, Gemini Prompt Design, Component Architecture (Decoder) |
+| 2 Secure backend | API Contract (server flow), Gemini Prompt Design, Configuration & Deployment |
+| 3 Task mgmt | Progress & Storage Logic, Component Architecture (tasks) |
+| 4 Dashboard | Component Architecture (dashboard), Progress & Storage Logic (overdue/aggregate) |
+| 5 Study planner | Study Planner Algorithm, Component Architecture (planner) |
+| 6 UI/UX states | Component Architecture, Error Handling Strategy |
+| 7 Sample fallback | Data Models (isSample), Error Handling Strategy (client fallback), lib/sample.ts |
+| 8 Persistence/privacy | Progress & Storage Logic, Configuration & Deployment |

@@ -1,4 +1,4 @@
-# Requirements — Deadline Decoder
+# Requirements Document
 
 ## Introduction
 
@@ -15,13 +15,34 @@ Acceptance criteria below use EARS-style phrasing (WHEN/IF ... THE SYSTEM SHALL 
 
 ---
 
-## Requirement 1 — AI Assignment Decoder
+## Glossary
+
+- **Assignment:** A saved record containing the original instructions, extracted
+  requirements, generated tasks, an optional course and due date, and progress.
+- **Requirement:** A single obligation from the assignment. Tagged `explicit` when
+  stated directly in the instructions, or `suggested` when recommended by the AI.
+- **Task:** An actionable, checkable step with an estimated duration in minutes.
+- **Decode:** The act of sending instructions to the Gemini-backed `/api/decode`
+  endpoint and receiving a structured title, requirements, and tasks.
+- **Study plan:** A deterministic, day-by-day schedule derived from incomplete tasks
+  and the due date (not AI-generated).
+- **Sample assignment:** A clearly labeled demo assignment that produces a full result
+  without calling Gemini, so the app stays demonstrable offline.
+- **EARS:** Easy Approach to Requirements Syntax — the WHEN/IF … THE SYSTEM SHALL …
+  phrasing used for acceptance criteria.
+- **MVP:** Minimum Viable Product — the core end-to-end feature set delivered first.
+
+---
+
+## Requirements
+
+### Requirement 1 — AI Assignment Decoder
 
 **User story:** As a student, I want to paste raw assignment instructions along with
 a course and due date, so that the app extracts the requirements and generates tasks
 for me.
 
-### Acceptance Criteria
+#### Acceptance Criteria
 1. WHEN the user opens the Decoder view THE SYSTEM SHALL present a multi-line input
    for instructions and optional inputs for course name and due date.
 2. WHEN the user submits non-empty instructions THE SYSTEM SHALL send them to the
@@ -42,12 +63,12 @@ for me.
 
 ---
 
-## Requirement 2 — Secure Gemini Backend
+### Requirement 2 — Secure Gemini Backend
 
 **User story:** As the project owner, I want all Gemini calls to go through a secure
 serverless function, so that my API key is never exposed in the browser.
 
-### Acceptance Criteria
+#### Acceptance Criteria
 1. THE SYSTEM SHALL read the Gemini key only from the server-side `GEMINI_API_KEY`
    environment variable and SHALL NOT include it in any client bundle.
 2. WHEN `/api/decode` receives a request THE SYSTEM SHALL validate the body
@@ -64,12 +85,12 @@ serverless function, so that my API key is never exposed in the browser.
 
 ---
 
-## Requirement 3 — Task Management
+### Requirement 3 — Task Management
 
 **User story:** As a student, I want to manage the generated tasks, so that I can
 track exactly what I have completed.
 
-### Acceptance Criteria
+#### Acceptance Criteria
 1. WHEN the user toggles a task THE SYSTEM SHALL mark it complete/incomplete and
    persist the change to localStorage immediately.
 2. THE SYSTEM SHALL allow the user to add a new task (title + estimated time), edit
@@ -83,12 +104,12 @@ track exactly what I have completed.
 
 ---
 
-## Requirement 4 — Dashboard
+### Requirement 4 — Dashboard
 
 **User story:** As a student, I want a dashboard of my assignments, so that I can see
 progress and what is due soon at a glance.
 
-### Acceptance Criteria
+#### Acceptance Criteria
 1. WHEN the user opens the Dashboard THE SYSTEM SHALL list saved assignments with
    title, course, due date (if any), and completion progress.
 2. THE SYSTEM SHALL surface upcoming deadlines and tasks ordered by due date.
@@ -103,12 +124,12 @@ progress and what is due soon at a glance.
 
 ---
 
-## Requirement 5 — Smart Study Planner
+### Requirement 5 — Smart Study Planner
 
 **User story:** As a student, I want a suggested work schedule, so that I can spread
 the assignment's tasks across the days before it is due.
 
-### Acceptance Criteria
+#### Acceptance Criteria
 1. WHEN an assignment has a due date and incomplete tasks THE SYSTEM SHALL generate a
    suggested schedule distributing tasks across the days remaining until the due date.
 2. THE SYSTEM SHALL base the schedule on task time estimates and the number of days
@@ -125,12 +146,12 @@ the assignment's tasks across the days before it is due.
 
 ---
 
-## Requirement 6 — User Interface & UX States
+### Requirement 6 — User Interface & UX States
 
 **User story:** As a student, I want a clean, responsive interface with clear states,
 so that the app feels polished and never leaves me stuck.
 
-### Acceptance Criteria
+#### Acceptance Criteria
 1. THE SYSTEM SHALL provide a modern SaaS-style dashboard layout with cards, progress
    indicators, and clear typography.
 2. THE SYSTEM SHALL be responsive and usable on both desktop and mobile viewports.
@@ -143,12 +164,12 @@ so that the app feels polished and never leaves me stuck.
 
 ---
 
-## Requirement 7 — Sample Assignment Fallback
+### Requirement 7 — Sample Assignment Fallback
 
 **User story:** As a demoer, I want a labeled sample assignment, so that the app is
 fully demonstrable even if the Gemini API is unavailable.
 
-### Acceptance Criteria
+#### Acceptance Criteria
 1. THE SYSTEM SHALL provide a clearly labeled "Load sample" action in the Decoder.
 2. WHEN the user loads the sample THE SYSTEM SHALL populate realistic instructions and
    produce a complete decode result (requirements + tasks + estimates) without calling
@@ -159,12 +180,12 @@ fully demonstrable even if the Gemini API is unavailable.
 
 ---
 
-## Requirement 8 — Persistence, Privacy & Resilience
+### Requirement 8 — Persistence, Privacy & Resilience
 
 **User story:** As a student, I want my data to stay on my device and survive reloads,
 so that the app is private and reliable without an account.
 
-### Acceptance Criteria
+#### Acceptance Criteria
 1. THE SYSTEM SHALL store all assignments, tasks, and plans in localStorage under a
    versioned key and SHALL migrate or safely reset on version mismatch.
 2. THE SYSTEM SHALL NOT transmit user data to any third party except the instructions
