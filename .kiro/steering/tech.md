@@ -10,9 +10,11 @@ inclusion: always
   buttons, progress bars.
 - **Icons:** `lucide-react`.
 - **AI:** Google Gemini API, called **only** from a serverless function. Default model
-  `gemini-2.5-flash` (free-tier eligible as of 2026; `gemini-2.0-flash` is restricted
-  to existing customers). Overridable via the `GEMINI_MODEL` env var. Verify what your
-  key can access with the ListModels endpoint:
+  `gemini-flash-lite-latest` (a stable, non-dated alias verified to return 200 from the
+  live API). Pinned models like `gemini-2.5-flash` now return 404 ("no longer available
+  to new users") for new keys even though they still appear in ListModels. Overridable
+  via the `GEMINI_MODEL` env var. A model appearing in ListModels does not guarantee it
+  works for `generateContent` — always confirm with a real POST (expect HTTP 200):
   `GET https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY`.
 - **Serverless:** Vercel functions in `/api` (Node runtime). Local dev via `vercel dev`.
 - **Persistence:** Browser `localStorage` behind a small typed storage module.

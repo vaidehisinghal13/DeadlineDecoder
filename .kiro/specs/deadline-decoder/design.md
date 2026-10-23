@@ -141,15 +141,17 @@ Status mapping: `bad_request`→400, `rate_limited`→429, `server_misconfigured
 
 ### Gemini endpoint
 `POST https://generativelanguage.googleapis.com/v1beta/models/<MODEL>:generateContent?key=<KEY>`
-with `MODEL = gemini-2.5-flash` by default (free-tier eligible as of 2026, fast,
-JSON-capable). Configurable via the `GEMINI_MODEL` env var.
+with `MODEL = gemini-flash-lite-latest` by default (a stable, non-dated alias verified
+to return 200 from the live API). Configurable via the `GEMINI_MODEL` env var.
 
-> **Model availability:** `gemini-2.0-flash` is restricted to existing customers for
-> new projects; new projects should use `gemini-2.5-flash` / `gemini-2.5-flash-lite`.
-> To confirm what a specific key can access, call ListModels:
-> `GET https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY`
-> and pick a model whose `supportedGenerationMethods` includes `generateContent`.
-> The README documents this check.
+> **Model availability (verified against the live API):** Google retires older pinned
+> models for new keys. `gemini-2.5-flash` now returns HTTP 404 ("no longer available to
+> new users") on `generateContent` even though it still appears in ListModels. We
+> therefore default to the stable alias `gemini-flash-lite-latest`.
+> A model appearing in ListModels does NOT guarantee it works for `generateContent`;
+> confirm with a real POST (expect 200):
+> `POST .../v1beta/models/<MODEL>:generateContent?key=$GEMINI_API_KEY`.
+> The backend maps a 404 to a typed `model_unavailable` error with an actionable message.
 
 ---
 
@@ -261,7 +263,7 @@ No component/E2E tests required for the MVP (manual demo verification instead).
 ## 10. Configuration & Deployment
 
 - Env: `GEMINI_API_KEY` (required, server-side), `GEMINI_MODEL` (optional, defaults to
-  `gemini-2.5-flash`).
+  `gemini-flash-lite-latest`).
 - `vercel.json`: ensures `/api/*` runs as functions; SPA fallback to `index.html`.
 - Local dev: `vercel dev` runs SPA + function together; `.env.local` supplies the key.
 - Deploy: push to GitHub → import in Vercel → set `GEMINI_API_KEY` in project env → deploy.

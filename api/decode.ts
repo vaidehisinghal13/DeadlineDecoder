@@ -26,13 +26,18 @@ type ErrorCode =
   | 'rate_limited'
   | 'upstream_error'
   | 'invalid_ai_response'
-  | 'server_misconfigured';
+  | 'server_misconfigured'
+  | 'model_unavailable';
 
 const MAX_INSTRUCTIONS_LENGTH = 12_000;
 const MIN_ESTIMATE = 5;
 const MAX_ESTIMATE = 1_440;
 const MAX_LIST = 30;
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+// Stable, non-dated alias so it won't be retired the way a pinned version is.
+// Verified against the live ListModels + generateContent API (returns 200).
+// Older pinned models like `gemini-2.5-flash` now return 404 ("no longer
+// available to new users") for new API keys. Override with GEMINI_MODEL if needed.
+const DEFAULT_MODEL = 'gemini-flash-lite-latest';
 
 // Minimal request/response shapes for the Node serverless runtime. Using `any`
 // here avoids a hard dependency on @vercel/node types for the MVP; the logic
@@ -202,7 +207,27 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
     return fail(res, 429, 'rate_limited', 'The AI service is rate limited. Please wait and retry.');
   }
   if (!upstream.ok) {
-    return fail(res, 502, 'upstream_error', `The AI service returned an error (${upstream.status}).`);
+    // Try to surface Gemini's own error message (e.g. a retired/invalid model).
+    const detail = await readUpstreamError(upstream);
+
+    // A 404 almost always means the configured model name is wrong, retired, or
+    // not available to this API key. Give an actionable message instead of a bare 404.
+    if (upstream.status === 404) {
+      const hint =
+        `The configured Gemini model "${model}" is not available for this API key. ` +
+        'It may be retired or misspelled. Verify available models with the ListModels ' +
+        'endpoint and set a valid GEMINI_MODEL (the app default is ' +
+        `"${DEFAULT_MODEL}").` +
+        (detail ? ` Gemini said: ${detail}` : '');
+      return fail(res, 502, 'model_unavailable', hint);
+    }
+
+    return fail(
+      res,
+      502,
+      'upstream_error',
+      `The AI service returned an error (${upstream.status}).` + (detail ? ` ${detail}` : ''),
+    );
   }
 
   let payload: unknown;
@@ -231,6 +256,23 @@ export default async function handler(req: VercelLikeRequest, res: VercelLikeRes
   } catch {
     return fail(res, 502, 'invalid_ai_response', 'The AI response did not match the expected format.');
   }
+}
+
+/**
+ * Best-effort extraction of Gemini's error message from a non-OK response.
+ * Returns a short string, or null. Never throws; never includes the API key.
+ */
+async function readUpstreamError(upstream: Response): Promise<string | null> {
+  try {
+    const data = (await upstream.json()) as { error?: { message?: unknown } };
+    const message = data?.error?.message;
+    if (typeof message === 'string' && message.trim().length > 0) {
+      return message.trim().slice(0, 300);
+    }
+  } catch {
+    // Non-JSON or empty body — nothing to surface.
+  }
+  return null;
 }
 
 function extractText(payload: unknown): string | null {

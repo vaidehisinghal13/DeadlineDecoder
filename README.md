@@ -63,16 +63,27 @@ Your `.env.local` is gitignored and never committed.
 
 ### Checking which Gemini models your key can use
 
-`gemini-2.0-flash` is restricted to existing customers for new projects. This app
-defaults to `gemini-2.5-flash` (free-tier eligible). To see exactly what your key can
-access and which models support `generateContent`:
+Google retires older pinned models for new API keys. For example, `gemini-2.5-flash`
+now returns a 404 ("no longer available to new users") even though it still appears in
+ListModels. This app therefore defaults to **`gemini-flash-lite-latest`**, a stable,
+non-dated alias verified to return `200` from the live API.
+
+To see exactly what your key can access and confirm a model actually works:
 
 ```bash
+# 1. List models your key can see
 curl "https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY"
+
+# 2. Confirm a specific model actually responds (not just listed). Expect HTTP 200.
+curl -s -o /dev/null -w "%{http_code}\n" \
+  -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=$GEMINI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"contents":[{"role":"user","parts":[{"text":"ok"}]}]}'
 ```
 
-Pick a model whose `supportedGenerationMethods` includes `generateContent`, then (if
-it isn't the default) set `GEMINI_MODEL` in `.env.local`.
+A model appearing in ListModels does **not** guarantee it works for `generateContent`,
+so always confirm with step 2. If your preferred model returns 200, set `GEMINI_MODEL`
+to it; otherwise leave it unset to use the default.
 
 ## Local development
 

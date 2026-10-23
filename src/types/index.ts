@@ -91,6 +91,7 @@ export type DecodeErrorCode =
   | 'upstream_error'
   | 'invalid_ai_response'
   | 'server_misconfigured'
+  | 'model_unavailable'
   | 'network_error';
 
 export interface DecodeErrorBody {
